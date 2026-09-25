@@ -419,57 +419,72 @@ clean_gpu() {
 ## GPU DETECTION
 case $ostype in
 *"Linux"*)
-	if command -v lspci >/dev/null 2>&1; then
-		# Get all GPUs
-		gpu_list="$(lspci 2>/dev/null | grep -i 'vga\|3d\|display' | sed 's/.*: //')"
-		gpu_count="$(echo "$gpu_list" | wc -l)"
+	gpu=""
+	vram=""
+	nv_query=""
+	if command -v nvidia-smi >/dev/null 2>&1; then
+		nv_query="$(nvidia-smi --query-gpu=name,memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null)"
+	fi
 
-		# Process first GPU (or only GPU)
-		gpu="$(echo "$gpu_list" | head -n1)"
-		gpu="$(echo "$gpu" | clean_gpu)"
+	if [ -n "$nv_query" ]; then
+		# nvidia-smi knows the exact model of every NVIDIA card and its VRAM.
+		# GPU line: collapse duplicate models into "Nx Model".
+		gpu="$(echo "$nv_query" | awk -F', ' '{
+			n=$1; sub(/^NVIDIA /, "", n)
+			if (!(n in seen)) { order[++k]=n }
+			seen[n]++
+		} END {
+			for (i=1; i<=k; i++) {
+				m=order[i]
+				printf "%s%s%s", (i>1 ? " | " : ""), (seen[m]>1 ? seen[m] "x " : ""), m
+			}
+		}')"
+		# VRAM line: one used/total per card, then the combined pool.
+		vram="$(echo "$nv_query" | awk -F', ' '{
+			u=$2; t=$3; tu+=u; tt+=t; n++
+			per=per (n>1 ? " " : "") int(u/1024) "/" int(t/1024)
+		} END {
+			if (n>1) printf "%s = %d/%dGB (%d%%)", per, tu/1024, tt/1024, (tt>0 ? tu*100/tt : 0)
+			else printf "%s GB (%d%%)", per, (tt>0 ? tu*100/tt : 0)
+		}')"
+	elif command -v lspci >/dev/null 2>&1; then
+		gpu_list="$(lspci 2>/dev/null | grep -i 'vga\|3d\|display' | sed 's/.*: //' | clean_gpu)"
+		# Collapse duplicate models into "Nx Model"
+		gpu="$(echo "$gpu_list" | awk 'NF {
+			if (!($0 in seen)) { order[++k]=$0 }
+			seen[$0]++
+		} END {
+			for (i=1; i<=k; i++) {
+				m=order[i]
+				printf "%s%s%s", (i>1 ? " | " : ""), (seen[m]>1 ? seen[m] "x " : ""), m
+			}
+		}')"
 
-		# Try to detect VRAM for AMD/NVIDIA
-		vram_info=""
-
-		# Check for NVIDIA GPU and nvidia-smi
-		if echo "$gpu" | grep -qi "nvidia\|geforce\|quadro" && command -v nvidia-smi >/dev/null 2>&1; then
-			vram_used="$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null | head -n1)"
-			vram_total="$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | head -n1)"
-			if [ -n "$vram_used" ] && [ -n "$vram_total" ] && [ "$vram_total" -gt 0 ]; then
-				vram_used_gb=$((vram_used / 1024))
-				vram_total_gb=$((vram_total / 1024))
-				vram_percent=$((vram_used * 100 / vram_total))
-				vram_info=" ${vram_used_gb}/${vram_total_gb}GB (${vram_percent}%)"
-			fi
-		# Check for AMD GPU in sysfs
-		elif [ -d /sys/class/drm ]; then
+		# AMD VRAM via sysfs (sum across all cards that expose it)
+		if [ -d /sys/class/drm ]; then
+			vram_used_total=0
+			vram_total_total=0
+			vram_per=""
 			for card in /sys/class/drm/card*/device; do
 				if [ -f "$card/mem_info_vram_total" ]; then
 					vram_total="$(cat "$card/mem_info_vram_total" 2>/dev/null || echo 0)"
 					vram_used="$(cat "$card/mem_info_vram_used" 2>/dev/null || echo 0)"
 					if [ "$vram_total" -gt 0 ]; then
-						vram_total_gb=$((vram_total / 1024 / 1024 / 1024))
-						vram_used_gb=$((vram_used / 1024 / 1024 / 1024))
-						vram_percent=$((vram_used * 100 / vram_total))
-						vram_info=" ${vram_used_gb}/${vram_total_gb}GB (${vram_percent}%)"
-						break
+						vram_per="${vram_per}${vram_per:+ }$((vram_used / 1073741824))/$((vram_total / 1073741824))"
+						vram_used_total=$((vram_used_total + vram_used))
+						vram_total_total=$((vram_total_total + vram_total))
 					fi
 				fi
 			done
+			if [ "$vram_total_total" -gt 0 ]; then
+				vram_percent=$((vram_used_total * 100 / vram_total_total))
+				case "$vram_per" in
+				*" "*) vram="${vram_per} = $((vram_used_total / 1073741824))/$((vram_total_total / 1073741824))GB (${vram_percent}%)" ;;
+				*) vram="${vram_per} GB (${vram_percent}%)" ;;
+				esac
+			fi
 		fi
-
-		# Intel integrated graphics - no VRAM info needed
-		# (uses shared system memory)
-
-		# Store VRAM separately instead of appending to GPU
-		vram="${vram_info}"
-
-		# If multiple GPUs, append second one
-		if [ "$gpu_count" -gt 1 ]; then
-			gpu2="$(echo "$gpu_list" | sed -n '2p')"
-			gpu2="$(echo "$gpu2" | clean_gpu)"
-			gpu="${gpu} | ${gpu2}"
-		fi
+		# Intel integrated graphics uses shared system memory - no VRAM line
 	else
 		gpu="N/A"
 	fi
