@@ -577,13 +577,13 @@ cat <<EOF
 ${c0}      ${cyan}____________${c0}       ${nc}${USER}${cyan}@${reset}${hn}${host}${reset}
 ${c0}     ${cyan}/\\  ________ \\${c0}      ${lc}${osi}  ${ic}${os}${reset}
 ${c0}    ${cyan}/  \\ \\______/\\ \\${c0}     ${lc}${ki}  ${ic}${kernel}${reset}
-${c0}   ${cyan}/ /\\ \\ \\  / /\\ \\ \\${c0}    ${lc}${ri}  ${ic}${memstat} ${mempercent}${reset}
-${c0}  ${cyan}/ / /\\ \\ \\/ / /\\ \\ \\${c0}   ${lc}${pi}  ${ic}${packages} (${manager})${reset}
-${c0} ${cyan}/ / /__\\_\\/ / /__\\_\\ \\${c0}  ${lc}${ui}  ${ic}${uptime}${reset}
-${c0}${cyan}/ /_/_______/ /________\\${c0}  ${lc}${si}  ${ic}${shell}${reset}
-${c0}${cyan}\\ \\ \\______ \\ \\______  /${c0}  ${lc}${wi}  ${ic}${wm}${reset}
-${c0} ${cyan}\\ \\ \\  / /\\ \\ \\  / / /${c0}   ${lc}${ti}  ${ic}${terminal}${reset}
-${c0}  ${cyan}\\ \\ \\/ / /\\ \\ \\/ / /${c0}    ${lc}${cpui}  ${ic}${cpu}${reset}
+${c0}   ${cyan}/ /\\ \\ \\  / /\\ \\ \\${c0}    ${lc}${pi}  ${ic}${packages} (${manager})${reset}
+${c0}  ${cyan}/ / /\\ \\ \\/ / /\\ \\ \\${c0}   ${lc}${ui}  ${ic}${uptime}${reset}
+${c0} ${cyan}/ / /__\\_\\/ / /__\\_\\ \\${c0}  ${lc}${si}  ${ic}${shell}${reset}
+${c0}${cyan}/ /_/_______/ /________\\${c0}  ${lc}${wi}  ${ic}${wm}${reset}
+${c0}${cyan}\\ \\ \\______ \\ \\______  /${c0}  ${lc}${ti}  ${ic}${terminal}${reset}
+${c0} ${cyan}\\ \\ \\  / /\\ \\ \\  / / /${c0}   ${lc}${cpui}  ${ic}${cpu}${reset}
+${c0}  ${cyan}\\ \\ \\/ / /\\ \\ \\/ / /${c0}    ${lc}${ri}  ${ic}${memstat} ${mempercent}${reset}
 ${c0}   ${cyan}\\ \\/ / /__\\_\\/ / /${c0}     ${lc}${gi}  ${ic}${gpu}${reset}
 ${c0}    ${cyan}\\  / /______\\/ /${c0}      ${lc}${vi}  ${ic}${vram}${reset}
 EOF
