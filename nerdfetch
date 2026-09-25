@@ -394,10 +394,7 @@ case $ostype in
 *"Linux"*)
 	cpu="$(awk -F': ' '/model name/ {print $2; exit}' /proc/cpuinfo)"
 	cpu="${cpu% @*}"  # Remove @ freq
-	cpu="${cpu//Intel(R) /}"
-	cpu="${cpu//Core(TM) /}"
-	cpu="${cpu// CPU/}"
-	cpu="${cpu//AMD /}"
+	cpu="$(echo "$cpu" | sed -e 's/Intel(R) //g' -e 's/Core(TM) //g' -e 's/ CPU//g' -e 's/AMD //g')"
 	;;
 *"Darwin"*)
 	cpu="$(sysctl -n machdep.cpu.brand_string)"
@@ -410,6 +407,15 @@ case $ostype in
 	;;
 esac
 
+# Strip vendor boilerplate from lspci GPU names (POSIX sed; no bash-only ${var//} expansions)
+clean_gpu() {
+	sed -e 's/Intel Corporation //g' \
+		-e 's/NVIDIA Corporation //g' \
+		-e 's/Advanced Micro Devices, Inc\. //g' \
+		-e 's/\[AMD\/ATI\] //g' \
+		-e 's/ (rev [0-9a-f]*)//g'
+}
+
 ## GPU DETECTION
 case $ostype in
 *"Linux"*)
@@ -420,11 +426,7 @@ case $ostype in
 
 		# Process first GPU (or only GPU)
 		gpu="$(echo "$gpu_list" | head -n1)"
-		gpu="${gpu//Intel Corporation /}"
-		gpu="${gpu//NVIDIA Corporation /}"
-		gpu="${gpu//Advanced Micro Devices, Inc. /}"
-		gpu="${gpu//\[AMD\/ATI\] /}"
-		gpu="${gpu// \(rev [0-9a-f]*\)/}"
+		gpu="$(echo "$gpu" | clean_gpu)"
 
 		# Try to detect VRAM for AMD/NVIDIA
 		vram_info=""
@@ -465,11 +467,7 @@ case $ostype in
 		# If multiple GPUs, append second one
 		if [ "$gpu_count" -gt 1 ]; then
 			gpu2="$(echo "$gpu_list" | sed -n '2p')"
-			gpu2="${gpu2//Intel Corporation /}"
-			gpu2="${gpu2//NVIDIA Corporation /}"
-			gpu2="${gpu2//Advanced Micro Devices, Inc. /}"
-			gpu2="${gpu2//\[AMD\/ATI\] /}"
-			gpu2="${gpu2// \(rev [0-9a-f]*\)/}"
+			gpu2="$(echo "$gpu2" | clean_gpu)"
 			gpu="${gpu} | ${gpu2}"
 		fi
 	else
